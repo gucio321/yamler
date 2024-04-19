@@ -23,11 +23,20 @@ var (
 	FieldOff FieldSwitch = nil
 )
 
+func BoolToFieldSwitch(b bool) FieldSwitch {
+	if b {
+		return FieldOn
+	}
+
+	return FieldOff
+}
+
 type Workflow struct {
 	Name string `yaml:"name,omitempty"`
 	On   struct {
 		Push struct {
-			branches []string `yaml:"branches",omitempty`
+			EnableEmpty FieldSwitch `yaml:"-"`
+			Branches    []string    `yaml:"branches",omitempty`
 		} `yaml:"push,omitempty"`
 		Fork  struct{} `yaml:"fork,omitempty"`
 		Label struct {

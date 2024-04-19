@@ -36,14 +36,19 @@ type Workflow struct {
 	On   struct {
 		Push struct {
 			EnableEmpty FieldSwitch `yaml:"-"`
-			Branches    []string    `yaml:"branches",omitempty`
+			Branches    []string    `yaml:"branches,omitempty"`
+			Tags        []string    `yaml:"tags,omitempty"`
 		} `yaml:"push,omitempty"`
-		Fork  struct{} `yaml:"fork,omitempty"`
+		Fork struct {
+			EnableEmpty FieldSwitch `yaml:"-"`
+		} `yaml:"fork,omitempty"`
 		Label struct {
-			Types []OnLabelType `yaml:"types,omitempty"`
+			EnableEmpty FieldSwitch   `yaml:"-"`
+			Types       []OnLabelType `yaml:"types,omitempty"`
 		} `yaml:"label,omitempty"`
 		Issues struct {
-			Types []OnIssueType `yaml:"types,omitempty"`
+			EnableEmpty FieldSwitch   `yaml:"-"`
+			Types       []OnIssueType `yaml:"types,omitempty"`
 		} `yaml:"issues,omitempty"`
 		PageBuild struct {
 			EnableEmpty FieldSwitch `yaml:"-"`
@@ -53,6 +58,7 @@ type Workflow struct {
 			Types       []string    `yaml:"types,omitempty"`
 		} `yaml:"pull_request,omitempty"`
 	} `yaml:"on"`
+	Jobs struct{} `yaml:"jobs"`
 }
 
 func (w *Workflow) Marshal() (string, error) {

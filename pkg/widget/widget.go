@@ -36,6 +36,7 @@ func (w *Widget) Build() {
 		),
 		giu.TabBar().TabItems(
 			giu.TabItem("On (triggers)").Layout(w.triggersTab()),
+			giu.TabItem("Jobs").Layout(w.triggersTab()),
 		),
 	}.Build()
 }
@@ -45,33 +46,61 @@ func (w *Widget) triggersTab() giu.Widget {
 	return giu.Layout{
 		giu.Table().Rows(
 			giu.TableRow(
-				giu.Label("Push"),
+				w.stateCheckbox("Push", "push_enabled", &s.workflow.On.Push.EnableEmpty),
 				giu.Layout{
-					giu.Checkbox("Enabled", s.toggles.GetByID("push_enabled")).OnChange(func() {
-						s.workflow.On.Push.EnableEmpty = workflow.BoolToFieldSwitch(*s.toggles.GetByID("push_enabled"))
-					}),
 					giu.Child().Layout(
 						giu.Label("Branches:"),
-						giu.Custom(func() {
-							for i := 0; i < len(s.workflow.On.Push.Branches); i++ {
-								branch := s.workflow.On.Push.Branches[i]
-								if branch == "" {
-									s.workflow.On.Push.Branches = append(s.workflow.On.Push.Branches[:i], s.workflow.On.Push.Branches[i+1:]...)
-									continue
-								}
-
-								giu.InputText(&s.workflow.On.Push.Branches[i]).Build()
-							}
-
-							tmp := ""
-							giu.InputText(&tmp).Hint("Add branch").OnChange(func() {
-								s.workflow.On.Push.Branches = append(s.workflow.On.Push.Branches, tmp)
-								tmp = ""
-							}).Build()
-						}),
-					),
+						w.dynamicList(&s.workflow.On.Push.Branches, &s.workflow.On.Push.EnableEmpty),
+					).Size(0, 100),
+					giu.Child().Layout(
+						giu.Label("Tags:"),
+						w.dynamicList(&s.workflow.On.Push.Tags, &s.workflow.On.Push.EnableEmpty),
+					).Size(0, 100),
 				},
+			),
+			giu.TableRow(
+				w.stateCheckbox("Fork", "fork_enabled", &s.workflow.On.Fork.EnableEmpty),
+			),
+			giu.TableRow(
+				w.stateCheckbox("Label", "label_enabled", &s.workflow.On.Label.EnableEmpty),
 			),
 		),
 	}
+}
+
+func (w *Widget) dynamicList(list *[]string, forceEnable *workflow.FieldSwitch) giu.Widget {
+	// s := w.GetState()
+
+	return giu.Custom(func() {
+		for i := 0; i < len(*list); i++ {
+			branch := (*list)[i]
+			if branch == "" {
+				*list = append((*list)[:i], (*list)[i+1:]...)
+				/*
+					if len(*list) == 0 {
+						*forceEnable = workflow.BoolToFieldSwitch(false)
+						*s.toggles.GetByID("push_enabled") = false
+					}
+				*/
+				continue
+			}
+
+			giu.InputText(&(*list)[i]).Build()
+		}
+
+		tmp := ""
+		giu.InputText(&tmp).Hint("Add...").OnChange(func() {
+			//*s.toggles.GetByID("push_enabled") = true
+			//*forceEnable = workflow.BoolToFieldSwitch(true)
+			*list = append((*list), tmp)
+			tmp = ""
+		}).Build()
+	})
+}
+
+func (w *Widget) stateCheckbox(label, tag string, sw *workflow.FieldSwitch) giu.Widget {
+	s := w.GetState()
+	return giu.Checkbox(label, s.toggles.GetByID(tag)).OnChange(func() {
+		*sw = workflow.BoolToFieldSwitch(*s.toggles.GetByID(tag))
+	})
 }

@@ -2,17 +2,20 @@ package widget
 
 import (
 	"fmt"
+	"github.com/gucio321/yamler/pkg/widget/workflowInfo"
 
 	"github.com/AllenDang/giu"
 	"github.com/gucio321/yamler/pkg/workflow"
 )
 
 type State struct {
-	workflow   *workflow.Workflow
-	code       string
-	toggles    *SuperMap[bool]
-	dropdowns  *SuperMap[int32]
-	newJobName string
+	workflow      *workflow.Workflow
+	code          string
+	toggles       *SuperMap[bool]
+	dropdowns     *SuperMap[int32]
+	actionDetails *SuperMap[workflowInfo.Info]
+	actionsWith   *SuperMap[string]
+	newJobName    string
 }
 
 func (s *State) Dispose() {
@@ -32,9 +35,11 @@ func (w *Widget) GetState() *State {
 
 func (w *Widget) newState() *State {
 	s := &State{
-		workflow:  w.w,
-		toggles:   NewSuperMap[bool](),
-		dropdowns: NewSuperMap[int32](),
+		workflow:      w.w,
+		toggles:       NewSuperMap[bool](),
+		dropdowns:     NewSuperMap[int32](),
+		actionDetails: NewSuperMap[workflowInfo.Info](),
+		actionsWith:   NewSuperMap[string](),
 	}
 
 	return s

@@ -70,7 +70,17 @@ type Workflow struct {
 }
 
 type Job struct {
-	RunsOn OS `yaml:"runs-on"`
+	RunsOn OS       `yaml:"runs-on"`
+	Needs  []string `yaml:"needs,omitempty"`
+	Steps  []*Step  `yaml:"steps"`
+}
+
+type Step struct {
+	Name string            `yaml:"name,omitempty"`
+	Id   string            `yaml:"id,omitempty"`
+	Uses string            `yaml:"uses,omitempty"`
+	With map[string]string `yaml:"with,omitempty"`
+	Run  string            `yaml:"run,omitempty"`
 }
 
 func (w *Workflow) Marshal() (string, error) {

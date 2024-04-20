@@ -11,11 +11,13 @@ import (
 func main() {
 	w := &workflow.Workflow{}
 	w.On.PageBuild.EnableEmpty = workflow.FieldOff
+	w.Jobs = make(map[string]*workflow.Job)
+	w.Jobs["tes"] = &workflow.Job{}
 	fmt.Println(w.Marshal())
 	wnd := giu.NewMasterWindow("Yamler", 640, 480, 0)
 	wnd.Run(func() {
 		giu.SingleWindow().Layout(
-			widget.Workflow(),
+			widget.Workflow(w),
 		)
 	})
 }

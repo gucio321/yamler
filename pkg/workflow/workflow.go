@@ -31,6 +31,14 @@ func BoolToFieldSwitch(b bool) FieldSwitch {
 	return FieldOff
 }
 
+type OS string
+
+const (
+	OSWindows = "windows-latest"
+	OSUbuntu  = "ubuntu-latest"
+	OSMacOS   = "macos-latest"
+)
+
 type Workflow struct {
 	Name string `yaml:"name,omitempty"`
 	On   struct {
@@ -58,7 +66,11 @@ type Workflow struct {
 			Types       []string    `yaml:"types,omitempty"`
 		} `yaml:"pull_request,omitempty"`
 	} `yaml:"on"`
-	Jobs struct{} `yaml:"jobs"`
+	Jobs map[string]*Job `yaml:"jobs"`
+}
+
+type Job struct {
+	RunsOn OS `yaml:"runs-on"`
 }
 
 func (w *Workflow) Marshal() (string, error) {

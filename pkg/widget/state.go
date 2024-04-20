@@ -8,9 +8,11 @@ import (
 )
 
 type State struct {
-	workflow *workflow.Workflow
-	code     string
-	toggles  *SuperMap
+	workflow   *workflow.Workflow
+	code       string
+	toggles    *SuperMap[bool]
+	dropdowns  *SuperMap[int32]
+	newJobName string
 }
 
 func (s *State) Dispose() {
@@ -30,8 +32,9 @@ func (w *Widget) GetState() *State {
 
 func (w *Widget) newState() *State {
 	s := &State{
-		workflow: &workflow.Workflow{}, // TODO
-		toggles:  NewSuperMap(),
+		workflow:  w.w,
+		toggles:   NewSuperMap[bool](),
+		dropdowns: NewSuperMap[int32](),
 	}
 
 	return s
@@ -41,19 +44,19 @@ func (w *Widget) stateID() string {
 	return fmt.Sprintf("%s_state", w.id)
 }
 
-type SuperMap map[string]*bool
+type SuperMap[T any] map[string]*T
 
-func NewSuperMap() *SuperMap {
-	m := SuperMap(make(map[string]*bool))
+func NewSuperMap[T any]() *SuperMap[T] {
+	m := make(SuperMap[T])
 	return &m
 }
 
-func (s *SuperMap) GetByID(id string) *bool {
+func (s *SuperMap[T]) GetByID(id string) *T {
 	if v, ok := (*s)[id]; ok {
 		return v
 	}
 
-	newV := new(bool)
+	newV := new(T)
 	(*s)[id] = newV
 
 	return newV

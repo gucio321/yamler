@@ -88,4 +88,10 @@ func (w *Workflow) Marshal() (string, error) {
 	return string(result), err
 }
 
+func Unmarshal(data []byte) (*Workflow, error) {
+	w := &Workflow{}
+	err := yaml.Unmarshal(data, w)
+	return w, err
+}
+
 type poweredMap map[string]interface{}

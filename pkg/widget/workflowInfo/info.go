@@ -5,6 +5,8 @@ import "gopkg.in/yaml.v3"
 type Info struct {
 	Capture     bool
 	Done        bool
+	SearchError string
+
 	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
 	Inputs      map[string]struct {

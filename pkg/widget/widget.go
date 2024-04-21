@@ -192,9 +192,25 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 			giu.TreeNodef("Uses (External Action)##uses%v%v%v", w.id, jobID, stepIdx).Layout(
 				giu.Row(
 					giu.Label("Uses (Action ID):"),
-					giu.InputText(&step.Uses).Hint("owner/repo@version").OnChange(func() {
-						step.With = make(map[string]string)
-						SearchActionInputs(step.Uses, s)
+					giu.Custom(func() {
+						info := s.actionDetails.GetByID(step.Uses)
+						i := giu.InputText(&step.Uses).Hint("owner/repo@version").OnChange(func() {
+							step.With = make(map[string]string)
+							SearchActionInputs(step.Uses, s)
+						})
+
+						if info.Done && info.SearchError != "" {
+							giu.Layout{
+								giu.CSSTag("error-detected").To(
+									i,
+									giu.Tooltip(info.SearchError),
+								),
+							}.Build()
+
+							return
+						}
+
+						i.Build()
 					}),
 				),
 				giu.Labelf("Name: %s", s.actionDetails.GetByID(step.Uses).Name),
@@ -264,15 +280,49 @@ func SearchActionInputs(name string, s *State) {
 		// 1. send GET request to url
 		url := fmt.Sprintf("https://raw.githubusercontent.com/%s/action.yml", strings.ReplaceAll(name, "@", "/"))
 		request, err := http.NewRequest("GET", url, nil)
-		if err != nil { // TODO: we can show this error somehow
+		if err != nil {
+			info := &workflowInfo.Info{
+				Capture:     true,
+				Done:        true,
+				SearchError: err.Error(),
+			}
+
+			*s.actionDetails.GetByID(name) = *info
 			return
 		}
 
 		client := &http.Client{}
 		response, err := client.Do(request)
 		if err != nil {
+			info := &workflowInfo.Info{
+				Capture:     true,
+				Done:        true,
+				SearchError: err.Error(),
+			}
+
+			*s.actionDetails.GetByID(name) = *info
 			return
 		}
+
+		if response.StatusCode != 200 {
+			info := &workflowInfo.Info{
+				Capture: true,
+				Done:    true,
+			}
+
+			switch response.StatusCode {
+			case 404:
+				info.SearchError = "Action not found"
+			case 400:
+				info.SearchError = "Invalid action name format"
+			default:
+				info.SearchError = fmt.Sprintf("Unexpected status code: %d", response.StatusCode)
+			}
+
+			*s.actionDetails.GetByID(name) = *info
+			return
+		}
+
 		// 2. read response body
 		output := make([]byte, 0)
 		// read all content of response.Body

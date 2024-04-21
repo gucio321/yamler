@@ -183,55 +183,59 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 			giu.Label("ID:"),
 			giu.InputText(&step.Id).Size(100),
 		),
-		giu.TreeNodef("Uses (External Action)##uses%v%v%v", w.id, jobID, stepIdx).Layout(
-			giu.Row(
-				giu.Label("Uses (Action ID):"),
-				giu.InputText(&step.Uses).Hint("owner/repo@version").OnChange(func() {
-					step.With = make(map[string]string)
-					SearchActionInputs(step.Uses, s)
+		giu.Style().SetDisabled(step.Run == "").To(
+			giu.TreeNodef("Uses (External Action)##uses%v%v%v", w.id, jobID, stepIdx).Layout(
+				giu.Row(
+					giu.Label("Uses (Action ID):"),
+					giu.InputText(&step.Uses).Hint("owner/repo@version").OnChange(func() {
+						step.With = make(map[string]string)
+						SearchActionInputs(step.Uses, s)
+					}),
+				),
+				giu.Labelf("Name: %s", s.actionDetails.GetByID(step.Uses).Name),
+				giu.Labelf("Description: %s", s.actionDetails.GetByID(step.Uses).Description),
+				giu.Custom(func() {
+					// here we print table with inputs
+					info := s.actionDetails.GetByID(step.Uses)
+					if !info.Done {
+						return
+					}
+					rows := make([]*giu.TableRowWidget, len(info.Inputs))
+					keys := make([]string, 0)
+					for key := range info.Inputs {
+						keys = append(keys, key)
+					}
+
+					sort.Strings(keys)
+
+					for i, key := range keys {
+						i := i
+						rows[i] = giu.TableRow(
+							giu.Layout{
+								giu.Label(key),
+								giu.Tooltip(info.Inputs[key].Description),
+							},
+							giu.InputText(s.actionsWith.GetByID(fmt.Sprintf("%s%s%d%s%s", key, step.Uses, stepIdx, jobID, w.id))).OnChange(func() {
+								step.With[key] = *s.actionsWith.GetByID(fmt.Sprintf("%s%s%d%s%s", key, step.Uses, stepIdx, jobID, w.id))
+								if step.With[key] == "" {
+									delete(step.With, key)
+								}
+							}).Hint(info.Inputs[key].Default),
+						)
+					}
+
+					if len(rows) == 0 {
+						return
+					}
+
+					giu.Table().Rows(rows...).Size(-1, 200).Build()
 				}),
 			),
-			giu.Labelf("Name: %s", s.actionDetails.GetByID(step.Uses).Name),
-			giu.Labelf("Description: %s", s.actionDetails.GetByID(step.Uses).Description),
-			giu.Custom(func() {
-				// here we print table with inputs
-				info := s.actionDetails.GetByID(step.Uses)
-				if !info.Done {
-					return
-				}
-				rows := make([]*giu.TableRowWidget, len(info.Inputs))
-				keys := make([]string, 0)
-				for key := range info.Inputs {
-					keys = append(keys, key)
-				}
-
-				sort.Strings(keys)
-
-				for i, key := range keys {
-					i := i
-					rows[i] = giu.TableRow(
-						giu.Layout{
-							giu.Label(key),
-							giu.Tooltip(info.Inputs[key].Description),
-						},
-						giu.InputText(s.actionsWith.GetByID(fmt.Sprintf("%s%s%d%s%s", key, step.Uses, stepIdx, jobID, w.id))).OnChange(func() {
-							step.With[key] = *s.actionsWith.GetByID(fmt.Sprintf("%s%s%d%s%s", key, step.Uses, stepIdx, jobID, w.id))
-							if step.With[key] == "" {
-								delete(step.With, key)
-							}
-						}).Hint(info.Inputs[key].Default),
-					)
-				}
-
-				if len(rows) == 0 {
-					return
-				}
-
-				giu.Table().Rows(rows...).Size(-1, 200).Build()
-			}),
 		),
-		giu.TreeNodef("Script##script%v%v%v", w.id, jobID, stepIdx).Layout(
-			giu.InputTextMultiline(&step.Run).Size(-1, 100),
+		giu.Style().SetDisabled(step.Uses == "").To(
+			giu.TreeNodef("Script##script%v%v%v", w.id, jobID, stepIdx).Layout(
+				giu.InputTextMultiline(&step.Run).Size(-1, 100),
+			),
 		),
 	}
 }

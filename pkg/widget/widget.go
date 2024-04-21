@@ -2,13 +2,12 @@ package widget
 
 import (
 	"fmt"
+	"github.com/AllenDang/giu"
 	"github.com/gucio321/yamler/pkg/widget/workflowInfo"
+	"github.com/gucio321/yamler/pkg/workflow"
 	"net/http"
 	"sort"
 	"strings"
-
-	"github.com/AllenDang/giu"
-	"github.com/gucio321/yamler/pkg/workflow"
 )
 
 type Widget struct {
@@ -77,8 +76,6 @@ func (w *Widget) triggersTab() giu.Widget {
 }
 
 func (w *Widget) dynamicList(list *[]string, forceEnable *workflow.FieldSwitch) giu.Widget {
-	// s := w.GetState()
-
 	return giu.Custom(func() {
 		for i := 0; i < len(*list); i++ {
 			branch := (*list)[i]
@@ -146,7 +143,17 @@ func (w *Widget) jobsTab() giu.Widget {
 					job.RunsOn = workflow.OS(osList[*s.dropdowns.GetByID(fmt.Sprintf("JobRunsOn%v%d", w.id, i))])
 				}),
 			),
-			giu.TreeNode("Steps").Layout(w.jobStep(fmt.Sprintf("%v%d", jobName, w.id), job.Steps[0])),
+			giu.TreeNode("Steps").Layout(
+				giu.Custom(func() {
+					for i := 0; i < len(job.Steps); i++ {
+						i := i
+						w.jobStep(i, jobName, job.Steps[i]).Build()
+					}
+				}),
+				giu.Button("Add step").OnClick(func() {
+					job.Steps = append(job.Steps, &workflow.Step{})
+				}),
+			),
 		))
 	}
 
@@ -165,7 +172,7 @@ func (w *Widget) jobsTab() giu.Widget {
 	}
 }
 
-func (w *Widget) jobStep(id string, step *workflow.Step) giu.Widget {
+func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Widget {
 	s := w.GetState()
 	return giu.Layout{
 		giu.Row(
@@ -174,58 +181,12 @@ func (w *Widget) jobStep(id string, step *workflow.Step) giu.Widget {
 			giu.Label("ID:"),
 			giu.InputText(&step.Id).Size(100),
 		),
-		giu.TreeNodef("Uses (External Action)##uses%v%v", w.id, id).Layout(
+		giu.TreeNodef("Uses (External Action)##uses%v%v%v", w.id, jobID, stepIdx).Layout(
 			giu.Row(
 				giu.Label("Uses (Action ID):"),
 				giu.InputText(&step.Uses).Hint("owner/repo@version").OnChange(func() {
-					if s.actionDetails.GetByID(step.Uses).Capture {
-						return
-					}
-
-					s.actionDetails.GetByID(step.Uses).Capture = true
-
-					go func() {
-						// try to extract action details from GitHub
-						// and save it as value of s.actionDetails.GetByID(step.Uses)
-
-						// [ preview ]
-						// date we're looking for are stored in a action.yaml file
-						// in action's repository on GitHub (we suppose github.com for now)
-						// url will be of form https://raw.githubusercontent.com/owner/repo/version/action.yml
-						// 1. send GET request to url
-						url := fmt.Sprintf("https://raw.githubusercontent.com/%s/action.yml", strings.ReplaceAll(step.Uses, "@", "/"))
-						request, err := http.NewRequest("GET", url, nil)
-						if err != nil { // TODO: we can show this error somehow
-							return
-						}
-
-						client := &http.Client{}
-						response, err := client.Do(request)
-						if err != nil {
-							return
-						}
-						// 2. read response body
-						output := make([]byte, 0)
-						// read all content of response.Body
-						// into output
-						for {
-							buffer := make([]byte, 1024)
-							n, err := response.Body.Read(buffer)
-							output = append(output, buffer[:n]...)
-							if err != nil {
-								break
-							}
-						}
-
-						info := workflowInfo.Unmarshal(output)
-
-						// 3. put it into s.actionDetails.GetByID(step.Uses)
-						info.Capture = true
-						info.Done = true
-						// Reset this because most probably old options does not apply
-						step.With = make(map[string]string)
-						*s.actionDetails.GetByID(step.Uses) = *info
-					}()
+					step.With = make(map[string]string)
+					SearchActionInputs(step.Uses, s)
 				}),
 			),
 			giu.Labelf("Name: %s", s.actionDetails.GetByID(step.Uses).Name),
@@ -251,8 +212,8 @@ func (w *Widget) jobStep(id string, step *workflow.Step) giu.Widget {
 							giu.Label(key),
 							giu.Tooltip(info.Inputs[key].Description),
 						},
-						giu.InputText(s.actionsWith.GetByID(fmt.Sprintf("%d%s%s%s", i, step.Uses, id, w.id))).OnChange(func() {
-							step.With[key] = *s.actionsWith.GetByID(fmt.Sprintf("%d%s%s%s", i, step.Uses, id, w.id))
+						giu.InputText(s.actionsWith.GetByID(fmt.Sprintf("%s%s%d%s%s", key, step.Uses, stepIdx, jobID, w.id))).OnChange(func() {
+							step.With[key] = *s.actionsWith.GetByID(fmt.Sprintf("%s%s%d%s%s", key, step.Uses, stepIdx, jobID, w.id))
 							if step.With[key] == "" {
 								delete(step.With, key)
 							}
@@ -267,8 +228,59 @@ func (w *Widget) jobStep(id string, step *workflow.Step) giu.Widget {
 				giu.Table().Rows(rows...).Build()
 			}),
 		),
-		giu.TreeNodef("Script##script%v%v", w.id, id).Layout(
+		giu.TreeNodef("Script##script%v%v%v", w.id, jobID, stepIdx).Layout(
 			giu.InputTextMultiline(&step.Run).Size(-1, 100),
 		),
 	}
+}
+
+// NOTE: this can't use w.GetState!
+func SearchActionInputs(name string, s *State) {
+	if s.actionDetails.GetByID(name).Capture {
+		return
+	}
+
+	s.actionDetails.GetByID(name).Capture = true
+
+	go func() {
+		// try to extract action details from GitHub
+		// and save it as value of s.actionDetails.GetByID(step.Uses)
+
+		// [ preview ]
+		// date we're looking for are stored in a action.yaml file
+		// in action's repository on GitHub (we suppose github.com for now)
+		// url will be of form https://raw.githubusercontent.com/owner/repo/version/action.yml
+		// 1. send GET request to url
+		url := fmt.Sprintf("https://raw.githubusercontent.com/%s/action.yml", strings.ReplaceAll(name, "@", "/"))
+		request, err := http.NewRequest("GET", url, nil)
+		if err != nil { // TODO: we can show this error somehow
+			return
+		}
+
+		client := &http.Client{}
+		response, err := client.Do(request)
+		if err != nil {
+			return
+		}
+		// 2. read response body
+		output := make([]byte, 0)
+		// read all content of response.Body
+		// into output
+		for {
+			buffer := make([]byte, 1024)
+			n, err := response.Body.Read(buffer)
+			output = append(output, buffer[:n]...)
+			if err != nil {
+				break
+			}
+		}
+
+		info := workflowInfo.Unmarshal(output)
+
+		// 3. put it into s.actionDetails.GetByID(step.Uses)
+		info.Capture = true
+		info.Done = true
+		// Reset this because most probably old options does not apply
+		*s.actionDetails.GetByID(name) = *info
+	}()
 }

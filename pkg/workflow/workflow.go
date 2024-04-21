@@ -44,7 +44,7 @@ type Workflow struct {
 	On   struct {
 		Push struct {
 			EnableEmpty FieldSwitch `yaml:"-"`
-			Branches    []string    `yaml:"branches,omitempty"`
+			Branches    []string    `yaml:"branch,omitempty"`
 			Tags        []string    `yaml:"tags,omitempty"`
 		} `yaml:"push,omitempty"`
 		Fork struct {
@@ -81,6 +81,12 @@ type Step struct {
 	Uses string            `yaml:"uses,omitempty"`
 	With map[string]string `yaml:"with,omitempty"`
 	Run  string            `yaml:"run,omitempty"`
+}
+
+func NewWorkflow() *Workflow {
+	return &Workflow{
+		Jobs: map[string]*Job{},
+	}
 }
 
 func (w *Workflow) Marshal() (string, error) {

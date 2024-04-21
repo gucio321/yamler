@@ -42,6 +42,20 @@ func (w *Widget) newState() *State {
 		actionsWith:   NewSuperMap[string](),
 	}
 
+	for jobID, job := range s.workflow.Jobs {
+		for stepIdx, step := range job.Steps {
+			if step.Uses != "" {
+				SearchActionInputs(step.Uses, s)
+				// also, fill  with's
+				for key, value := range step.With {
+					jobID := jobID
+					stepIdx := stepIdx
+					*s.actionsWith.GetByID(fmt.Sprintf("%s%s%d%s%s", key, step.Uses, stepIdx, jobID, w.id)) = value
+				}
+			}
+		}
+	}
+
 	return s
 }
 

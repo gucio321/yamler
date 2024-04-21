@@ -1,0 +1,33 @@
+main {
+        child-background-color: black;
+        background-color: black;
+        frame-background-color: black;
+        popup-background-color: black;
+        button-color: black;
+        tab-color: black;
+
+        color: #00b311;
+
+        scrollbar-grab-hovered-color: #00b311;
+        scrollbar-grab-active-color: #00b311;
+
+        title-background-active-color: #003505;
+        tab-active-color: #003505;
+        scrollbar-grab-color: #003505;
+        title-background-color: #003505;
+
+        checkmark-color: #00b311;
+        disabled-color: #00700b;
+        
+        separator-color: white;
+        border-color: white;
+        frame-background-hovered-color: white;
+        tab-hovered-color: white;
+        button-hovered-color: white;
+        header-hovered-color: white;
+}
+
+delete-button {
+        color: red;
+        border-color: red;
+}

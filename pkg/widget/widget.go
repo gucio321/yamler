@@ -136,11 +136,11 @@ func (w *Widget) jobsTab() giu.Widget {
 						if job.RunsOn == "" {
 							return "--"
 						}
-						return osList[*s.dropdowns.GetByID(fmt.Sprintf("JobRunsOn%v%d", w.id, i))]
+						return osList[*s.dropdowns.GetByID(w.jobRunsOnID(jobName))]
 					}(),
-					osList, s.dropdowns.GetByID(fmt.Sprintf("JobRunsOn%v%d", w.id, i)),
+					osList, s.dropdowns.GetByID(w.jobRunsOnID(jobName)),
 				).OnChange(func() {
-					job.RunsOn = workflow.OS(osList[*s.dropdowns.GetByID(fmt.Sprintf("JobRunsOn%v%d", w.id, i))])
+					job.RunsOn = workflow.OS(osList[*s.dropdowns.GetByID(w.jobRunsOnID(jobName))])
 				}),
 			),
 			giu.TreeNode("Steps").Layout(

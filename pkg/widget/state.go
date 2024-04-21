@@ -43,6 +43,13 @@ func (w *Widget) newState() *State {
 	}
 
 	for jobID, job := range s.workflow.Jobs {
+		runsOnIdxPtr := s.dropdowns.GetByID(w.jobRunsOnID(jobID))
+		for osIdx, os := range GetOSs() {
+			if job.RunsOn == workflow.OS(os) {
+				*runsOnIdxPtr = int32(osIdx)
+				break
+			}
+		}
 		for stepIdx, step := range job.Steps {
 			if step.Uses != "" {
 				SearchActionInputs(step.Uses, s)

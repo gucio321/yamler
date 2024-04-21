@@ -31,3 +31,8 @@ delete-button {
         color: red;
         border-color: red;
 }
+
+error-detected {
+        color: red;
+        border-color: red;
+}

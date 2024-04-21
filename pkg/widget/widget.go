@@ -227,7 +227,7 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 					return
 				}
 
-				giu.Table().Rows(rows...).Build()
+				giu.Table().Rows(rows...).Size(-1, 200).Build()
 			}),
 		),
 		giu.TreeNodef("Script##script%v%v%v", w.id, jobID, stepIdx).Layout(

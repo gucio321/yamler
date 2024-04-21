@@ -6,6 +6,7 @@ import (
 	"github.com/gucio321/yamler/pkg/widget/workflowInfo"
 	"github.com/gucio321/yamler/pkg/workflow"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 )
@@ -36,6 +37,10 @@ func (w *Widget) Build() {
 				giu.Child().Layout(
 					giu.InputTextMultiline(&s.code).Size(-1, -1),
 				).Size(300, 300),
+				giu.Button("Print to STDOUT").OnClick(func() {
+					fmt.Fprintln(os.Stderr, "--Generating to stdout--")
+					fmt.Fprintln(os.Stdout, s.code)
+				}).Size(-1, 0),
 				giu.Button("Close").OnClick(func() {
 					giu.CloseCurrentPopup()
 				}).Size(-1, 0),

@@ -145,9 +145,11 @@ func (w *Widget) jobsTab() giu.Widget {
 			),
 			giu.TreeNode("Steps").Layout(
 				giu.Custom(func() {
+					giu.Separator().Build()
 					for i := 0; i < len(job.Steps); i++ {
 						i := i
 						w.jobStep(i, jobName, job.Steps[i]).Build()
+						giu.Separator().Build()
 					}
 				}),
 				giu.Button("Add step").OnClick(func() {

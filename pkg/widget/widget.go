@@ -182,8 +182,13 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 			giu.InputText(&step.Name).Size(100),
 			giu.Label("ID:"),
 			giu.InputText(&step.Id).Size(100),
+			giu.CSSTag("delete-button").To(
+				giu.Button("Delete").OnClick(func() {
+					s.workflow.Jobs[jobID].Steps = append(s.workflow.Jobs[jobID].Steps[:stepIdx], s.workflow.Jobs[jobID].Steps[stepIdx+1:]...)
+				}),
+			),
 		),
-		giu.Style().SetDisabled(step.Run == "").To(
+		giu.Style().SetDisabled(step.Run != "").To(
 			giu.TreeNodef("Uses (External Action)##uses%v%v%v", w.id, jobID, stepIdx).Layout(
 				giu.Row(
 					giu.Label("Uses (Action ID):"),
@@ -232,7 +237,7 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 				}),
 			),
 		),
-		giu.Style().SetDisabled(step.Uses == "").To(
+		giu.Style().SetDisabled(step.Uses != "").To(
 			giu.TreeNodef("Script##script%v%v%v", w.id, jobID, stepIdx).Layout(
 				giu.InputTextMultiline(&step.Run).Size(-1, 100),
 			),

@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -32,7 +31,6 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	fmt.Println(w.On.Push)
 
 	wnd := giu.NewMasterWindow("Yamler", 640, 480, 0)
 	if err := giu.ParseCSSStyleSheet(assets.Style); err != nil {

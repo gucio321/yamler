@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/AllenDang/giu"
+	"github.com/gucio321/yamler/pkg/assets"
 	"github.com/gucio321/yamler/pkg/widget"
 	"github.com/gucio321/yamler/pkg/workflow"
 )
@@ -34,6 +35,10 @@ func main() {
 	fmt.Println(w.On.Push)
 
 	wnd := giu.NewMasterWindow("Yamler", 640, 480, 0)
+	if err := giu.ParseCSSStyleSheet(assets.Style); err != nil {
+		log.Fatal(err)
+	}
+
 	wnd.Run(func() {
 		giu.SingleWindow().Layout(
 			widget.Workflow(w),

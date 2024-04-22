@@ -40,8 +40,9 @@ const (
 )
 
 type Workflow struct {
-	Name string `yaml:"name,omitempty"`
-	On   struct {
+	Name    string `yaml:"name,omitempty"`
+	RunName string `yaml:"run_name,omitempty"`
+	On      struct {
 		Push struct {
 			EnableEmpty FieldSwitch `yaml:"-"`
 			Branches    []string    `yaml:"branch,omitempty"`

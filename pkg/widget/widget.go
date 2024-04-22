@@ -46,6 +46,22 @@ func (w *Widget) Build() {
 				}).Size(-1, 0),
 			),
 		),
+		giu.Row(
+			giu.Label("Run Name (?):"),
+			giu.Tooltip("").Layout(
+				giu.Label(`The name for workflow runs generated from the workflow.
+GitHub displays the workflow run name in the list of workflow runs
+on your repository's "Actions" tab. If run-name is omitted or is only
+whitespace, then the run name is set to event-specific information
+for the workflow run. For example, for a workflow triggered by a push
+or pull_request event, it is set as the commit message or the title of the
+pull request.
+
+This value can include expressions and can reference the github and inputs contexts.`),
+			),
+
+			giu.InputText(&s.workflow.RunName).Hint("e.g. Deploy to ${{ inputs.deploy_target }} by @${{ github.actor }}"),
+		),
 		giu.TabBar().TabItems(
 			giu.TabItem("On (triggers)").Layout(w.triggersTab()),
 			giu.TabItem("Jobs").Layout(w.jobsTab()),

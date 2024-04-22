@@ -15,3 +15,8 @@ This programm supports the following forms of communication:
 - It will print output to STDOUT
 - If you don't want to scan STDIn use `-n` flag.
 - It works on Unix, IDK about Windows. Windows has no standards.
+
+## Reference
+
+- [GitHub Actions](https://docs.github.com/en/actions)
+- [YAML syntax for GitHub Actions](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)

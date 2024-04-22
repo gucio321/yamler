@@ -12,3 +12,11 @@ func GetOSs() []string {
 func (w *Widget) jobRunsOnID(jobName string) string {
 	return fmt.Sprintf("JobRunsOn%v%s", w.id, jobName)
 }
+
+func ToStrSlice[T ~string](in []T) []string {
+	out := make([]string, len(in))
+	for i, v := range in {
+		out[i] = string(v)
+	}
+	return out
+}

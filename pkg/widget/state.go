@@ -12,6 +12,7 @@ type State struct {
 	workflow      *workflow.Workflow
 	code          string
 	toggles       *SuperMap[bool]
+	permissions   *SuperMap[int32]
 	dropdowns     *SuperMap[int32]
 	actionDetails *SuperMap[workflowInfo.Info]
 	actionsWith   *SuperMap[string]
@@ -37,6 +38,7 @@ func (w *Widget) newState() *State {
 	s := &State{
 		workflow:      w.w,
 		toggles:       NewSuperMap[bool](),
+		permissions:   NewSuperMap[int32](),
 		dropdowns:     NewSuperMap[int32](),
 		actionDetails: NewSuperMap[workflowInfo.Info](),
 		actionsWith:   NewSuperMap[string](),

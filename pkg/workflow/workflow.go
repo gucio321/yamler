@@ -31,6 +31,14 @@ func BoolToFieldSwitch(b bool) FieldSwitch {
 	return FieldOff
 }
 
+type Permission string
+
+const (
+	PermRead  Permission = "read"
+	PermWrite Permission = "write"
+	PermNone  Permission = "none"
+)
+
 type OS string
 
 const (
@@ -64,9 +72,48 @@ type Workflow struct {
 		} `yaml:"page_build,omitempty"`
 		PullRequest struct {
 			EnableEmpty FieldSwitch `yaml:"-"`
-			Types       []string    `yaml:"types,omitempty"`
+
+			Branches        []string `yaml:"branches,omitempty"`
+			BranchesIgnored []string `yaml:"branches-ignored,omitempty"`
+			Tags            []string `yaml:"tags,omitempty"`
+			TagsIgnored     []string `yaml:"tags-ignored,omitempty"`
+			Paths           []string `yaml:"paths,omitempty"`
+			PathsIgnored    []string `yaml:"paths-ignored,omitempty"`
+
+			Types []string `yaml:"types,omitempty"`
 		} `yaml:"pull_request,omitempty"`
+		PullRequestTarget struct {
+			EnableEmpty FieldSwitch `yaml:"-"`
+
+			Branches        []string `yaml:"branches,omitempty"`
+			BranchesIgnored []string `yaml:"branches-ignored,omitempty"`
+			Tags            []string `yaml:"tags,omitempty"`
+			TagsIgnored     []string `yaml:"tags-ignored,omitempty"`
+			Paths           []string `yaml:"paths,omitempty"`
+			PathsIgnored    []string `yaml:"paths-ignored,omitempty"`
+
+			Types []string `yaml:"types,omitempty"`
+		} `yaml:"pull_request_target,omitempty"`
+		WorkflowDispatch struct {
+			EnableEmpty FieldSwitch         `yaml:"-"`
+			Inputs      map[string]struct{} `yaml:"inputs,omitempty` // TODO
+		} `yaml:"workflow_dispatch,omitempty"`
 	} `yaml:"on"`
+	Permissions struct {
+		Actions            Permission `yaml:"actions,omitempty"`
+		Checks             Permission `yaml:"checks,omitempty"`
+		Contents           Permission `yaml:"contents,omitempty"`
+		Deployments        Permission `yaml:"deployments,omitempty"`
+		IDToken            Permission `yaml:"id-token,omitempty"`
+		Issues             Permission `yaml:"issues,omitempty"`
+		Discussions        Permission `yaml:"discussions,omitempty"`
+		Packages           Permission `yaml:"packages,omitempty"`
+		Pages              Permission `yaml:"pages,omitempty"`
+		PullRequests       Permission `yaml:"pull-requests,omitempty"`
+		RepositoryProjects Permission `yaml:"repository-projects,omitempty"`
+		SecurityEvents     Permission `yaml:"security-events,omitempty"`
+		Statuses           Permission `yaml:"statuses,omitempty"`
+	} `yaml:"permissions,omitempty"`
 	Jobs map[string]*Job `yaml:"jobs"`
 }
 

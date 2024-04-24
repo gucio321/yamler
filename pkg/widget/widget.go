@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+const Signature = `# Generated with yamler: https://github.com/gucio321/yamler by @gucio321`
+
 type Widget struct {
 	id string
 	w  *workflow.Workflow
@@ -28,11 +30,18 @@ func (w *Widget) Build() {
 	giu.Layout{
 		giu.Row(
 			giu.Label("Name:"),
-			giu.InputText(&s.workflow.Name),
+			giu.InputText(&s.workflow.Name).Size(200),
 			giu.Button("Generate Code").OnClick(func() {
 				s.code, _ = s.workflow.Marshal()
+				if s.signature {
+					s.code = fmt.Sprintf("%s\n%s", Signature, s.code)
+				}
 				giu.OpenPopup("Code output")
 			}),
+			giu.Checkbox("Signature", &s.signature),
+			giu.Tooltip(`Add a comment on top of generated code with a link to this generator
+
+I do not enforce that but I'd be greatful!`),
 			giu.PopupModal("Code output").Layout(
 				giu.Child().Layout(
 					giu.InputTextMultiline(&s.code).Size(-1, -1),
@@ -218,20 +227,19 @@ func (w *Widget) jobsTab() giu.Widget {
 					job.RunsOn = workflow.OS(osList[*s.dropdowns.GetByID(w.jobRunsOnID(jobName))])
 				}),
 			),
-			giu.TreeNode("Steps").Layout(
-				giu.Custom(func() {
+			giu.Custom(func() {
+				giu.Separator().Build()
+				for i := 0; i < len(job.Steps); i++ {
+					i := i
+					w.jobStep(i, jobName, job.Steps[i]).Build()
 					giu.Separator().Build()
-					for i := 0; i < len(job.Steps); i++ {
-						i := i
-						w.jobStep(i, jobName, job.Steps[i]).Build()
-						giu.Separator().Build()
-					}
-				}),
-				giu.Button("Add step").OnClick(func() {
-					job.Steps = append(job.Steps, &workflow.Step{})
-				}),
-			),
-		))
+				}
+			}),
+			giu.Button("Add step").OnClick(func() {
+				job.Steps = append(job.Steps, &workflow.Step{})
+			}),
+		),
+		)
 	}
 
 	return giu.Layout{
@@ -326,11 +334,26 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 
 					giu.Table().Rows(rows...).Size(-1, 200).Build()
 				}),
+				giu.Style().SetDisabled(step.Uses == "").To(
+					giu.CSSTag("delete-button").To(
+						giu.Button("Clear").Size(-1, 0).OnClick(func() {
+							step.Uses = ""
+							step.With = make(map[string]string)
+						}),
+					),
+				),
 			),
 		),
 		giu.Style().SetDisabled(step.Uses != "").To(
 			giu.TreeNodef("Script##script%v%v%v", w.id, jobID, stepIdx).Layout(
 				giu.InputTextMultiline(&step.Run).Size(-1, 100),
+				giu.Style().SetDisabled(step.Run == "").To(
+					giu.CSSTag("delete-button").To(
+						giu.Button("Clear").Size(-1, 0).OnClick(func() {
+							step.Run = ""
+						}),
+					),
+				),
 			),
 		),
 	}

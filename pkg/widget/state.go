@@ -9,6 +9,7 @@ import (
 )
 
 type State struct {
+	signature     bool
 	workflow      *workflow.Workflow
 	code          string
 	toggles       *SuperMap[bool]

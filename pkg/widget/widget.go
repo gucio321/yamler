@@ -71,6 +71,7 @@ This value can include expressions and can reference the github and inputs conte
 
 			giu.InputText(&s.workflow.RunName).Hint("e.g. Deploy to ${{ inputs.deploy_target }} by @${{ github.actor }}"),
 		),
+		giu.Dummy(0, 20),
 		giu.TabBar().TabItems(
 			giu.TabItem("On (triggers)").Layout(w.triggersTab()),
 			giu.TabItem("Permissions").Layout(w.permissionsTab()),
@@ -211,33 +212,40 @@ func (w *Widget) jobsTab() giu.Widget {
 		job := s.workflow.Jobs[jobName]
 		_ = job
 		tabItems = append(tabItems, giu.TabItemf("%s##%d", jobName, i).Layout(
-			giu.Labelf("Name: %s", jobName),
-			giu.Row(
-				giu.Label("Runs on:"),
-				giu.Combo(
-					fmt.Sprintf("##JobRunsOn%v%d", w.id, i),
-					func() string {
-						if job.RunsOn == "" {
-							return "--"
-						}
-						return osList[*s.dropdowns.GetByID(w.jobRunsOnID(jobName))]
-					}(),
-					osList, s.dropdowns.GetByID(w.jobRunsOnID(jobName)),
-				).OnChange(func() {
-					job.RunsOn = workflow.OS(osList[*s.dropdowns.GetByID(w.jobRunsOnID(jobName))])
+			giu.Child().Layout(
+				giu.Labelf("Name: %s", jobName),
+				giu.Row(
+					giu.Label("Runs on:"),
+					giu.Combo(
+						fmt.Sprintf("##JobRunsOn%v%d", w.id, i),
+						func() string {
+							if job.RunsOn == "" {
+								return "--"
+							}
+							return osList[*s.dropdowns.GetByID(w.jobRunsOnID(jobName))]
+						}(),
+						osList, s.dropdowns.GetByID(w.jobRunsOnID(jobName)),
+					).OnChange(func() {
+						job.RunsOn = workflow.OS(osList[*s.dropdowns.GetByID(w.jobRunsOnID(jobName))])
+					}),
+				),
+
+				giu.TreeNodef("Needs##%s", jobName).Layout(
+					w.needs(jobName),
+				),
+				// render steps
+				giu.Custom(func() {
+					giu.Separator().Build()
+					for i := 0; i < len(job.Steps); i++ {
+						i := i
+						w.jobStep(i, jobName, job.Steps[i]).Build()
+						giu.Separator().Build()
+					}
+				}),
+				giu.Button("Add step").OnClick(func() {
+					job.Steps = append(job.Steps, &workflow.Step{})
 				}),
 			),
-			giu.Custom(func() {
-				giu.Separator().Build()
-				for i := 0; i < len(job.Steps); i++ {
-					i := i
-					w.jobStep(i, jobName, job.Steps[i]).Build()
-					giu.Separator().Build()
-				}
-			}),
-			giu.Button("Add step").OnClick(func() {
-				job.Steps = append(job.Steps, &workflow.Step{})
-			}),
 		),
 		)
 	}
@@ -253,6 +261,7 @@ func (w *Widget) jobsTab() giu.Widget {
 				return ok || s.newJobName == ""
 			}()),
 		),
+		giu.Dummy(0, 10),
 		giu.TabBar().TabItems(tabItems...),
 	}
 }
@@ -442,4 +451,75 @@ func SearchActionInputs(name string, s *State) {
 		// Reset this because most probably old options does not apply
 		*s.actionDetails.GetByID(name) = *info
 	}()
+}
+
+func (w *Widget) needs(jobName string) giu.Widget {
+	s := w.GetState()
+	jobNames := make([]string, 0)
+	for name := range s.workflow.Jobs {
+		if name != jobName {
+			jobNames = append(jobNames, name)
+		}
+	}
+
+	sort.Strings(jobNames)
+
+	availableJobNames := make([]string, len(jobNames))
+	copy(availableJobNames, jobNames)
+
+	needs := s.workflow.Jobs[jobName].Needs
+	ptrs := make([]*int32, len(needs))
+	for i, need := range needs {
+		ptrs[i] = new(int32)
+		*ptrs[i] = -1
+		for _, name := range jobNames {
+			if name == need {
+				*ptrs[i] = int32(i)
+				availableJobNames[i] = ""
+			}
+		}
+	}
+
+	for i := range availableJobNames {
+		if availableJobNames[i] == "" {
+			availableJobNames = append(availableJobNames[:i], availableJobNames[i+1:]...)
+		}
+	}
+
+	combos := make([]giu.Widget, len(needs))
+	for i := range needs {
+		i := i
+		combos = append(combos, giu.Layout{
+			giu.Combo(fmt.Sprintf("##%s%d", jobName, i),
+				func() string {
+					if *ptrs[i] == -1 {
+						return "--"
+					}
+
+					return jobNames[*ptrs[i]]
+				}(), jobNames, ptrs[i]),
+		})
+
+	}
+
+	return giu.Layout{
+		giu.Layout(combos),
+		giu.Custom(func() {
+			tmp := int32(-1)
+			giu.Combo(fmt.Sprintf("##%sNew", jobName),
+				func() string {
+					if tmp == -1 {
+						return "--"
+					}
+
+					return availableJobNames[tmp]
+				}(), availableJobNames, &tmp).OnChange(func() {
+				if tmp == -1 {
+					return
+				}
+
+				s.workflow.Jobs[jobName].Needs = append(s.workflow.Jobs[jobName].Needs, availableJobNames[tmp])
+			}).Build()
+		}),
+	}
 }

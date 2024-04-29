@@ -37,6 +37,7 @@ func (w *Widget) GetState() *State {
 
 func (w *Widget) newState() *State {
 	s := &State{
+		signature:     true,
 		workflow:      w.w,
 		toggles:       NewSuperMap[bool](),
 		permissions:   NewSuperMap[int32](),

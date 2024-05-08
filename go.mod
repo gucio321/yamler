@@ -3,12 +3,12 @@ module github.com/gucio321/yamler
 go 1.22.0
 
 require (
-	github.com/AllenDang/giu v0.7.1-0.20240430085330-825a30ad0721
+	github.com/AllenDang/giu v0.7.1-0.20240508074308-58bd6f84ef83
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/AllenDang/cimgui-go v0.0.0-20240429075623-6996cd326381 // indirect
+	github.com/AllenDang/cimgui-go v0.0.0-20240506052550-aebb8a936c76 // indirect
 	github.com/AllenDang/go-findfont v0.0.0-20200702051237-9f180485aeb8 // indirect
 	github.com/faiface/mainthread v0.0.0-20171120011319-8b78f0a41ae3 // indirect
 	github.com/mazznoer/csscolorparser v0.1.3 // indirect
@@ -17,7 +17,7 @@ require (
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	golang.design/x/hotkey v0.4.1 // indirect
 	golang.design/x/mainthread v0.3.0 // indirect
-	golang.org/x/image v0.15.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/image v0.16.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
 	gopkg.in/eapache/queue.v1 v1.1.0 // indirect
 )

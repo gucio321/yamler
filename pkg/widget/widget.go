@@ -5,7 +5,6 @@ import (
 	"github.com/AllenDang/giu"
 	"github.com/gucio321/yamler/pkg/workflow"
 	"os"
-	"sort"
 )
 
 const Signature = `# Generated with yamler: https://github.com/gucio321/yamler by @gucio321`
@@ -29,8 +28,22 @@ func (w *Widget) Token(token string) *Widget {
 }
 
 func (w *Widget) Build() {
-	s := w.GetState()
 	giu.Layout{
+		w.requestsStatus(),
+		giu.Separator(),
+		w.workflowHeader(),
+		giu.TabBar().TabItems(
+			giu.TabItem("On (triggers)").Layout(w.triggersTab()),
+			giu.TabItem("Permissions").Layout(w.permissionsTab()),
+			giu.TabItem("Jobs").Layout(w.jobsTab()),
+		),
+	}.Build()
+}
+
+func (w *Widget) requestsStatus() giu.Layout {
+	s := w.GetState()
+
+	return giu.Layout{
 		giu.CSSTag(func() string {
 			if s.InvalidToken {
 				return "error-detected"
@@ -46,7 +59,13 @@ func (w *Widget) Build() {
 				}),
 			),
 		),
-		giu.Separator(),
+	}
+}
+
+func (w *Widget) workflowHeader() giu.Layout {
+	s := w.GetState()
+
+	return giu.Layout{
 		giu.Row(
 			giu.Label("Name:"),
 			giu.InputText(&s.workflow.Name).Size(200),
@@ -74,6 +93,7 @@ I do not enforce that but I'd be greatful!`),
 				}).Size(-1, 0),
 			),
 		),
+
 		giu.Row(
 			giu.Label("Run Name (?):"),
 			giu.Tooltip("").Layout(
@@ -91,12 +111,7 @@ This value can include expressions and can reference the github and inputs conte
 			giu.InputText(&s.workflow.RunName).Hint("e.g. Deploy to ${{ inputs.deploy_target }} by @${{ github.actor }}"),
 		),
 		giu.Dummy(0, 20),
-		giu.TabBar().TabItems(
-			giu.TabItem("On (triggers)").Layout(w.triggersTab()),
-			giu.TabItem("Permissions").Layout(w.permissionsTab()),
-			giu.TabItem("Jobs").Layout(w.jobsTab()),
-		),
-	}.Build()
+	}
 }
 
 func (w *Widget) triggersTab() giu.Widget {
@@ -123,360 +138,5 @@ func (w *Widget) triggersTab() giu.Widget {
 				w.stateCheckbox("Label", "label_enabled", &s.workflow.On.Label.EnableEmpty),
 			),
 		),
-	}
-}
-
-func (w *Widget) dynamicList(list *[]string, forceEnable *workflow.FieldSwitch) giu.Widget {
-	return giu.Custom(func() {
-		for i := 0; i < len(*list); i++ {
-			branch := (*list)[i]
-			if branch == "" {
-				*list = append((*list)[:i], (*list)[i+1:]...)
-				/*
-					if len(*list) == 0 {
-						*forceEnable = workflow.BoolToFieldSwitch(false)
-						*s.toggles.GetByID("push_enabled") = false
-					}
-				*/
-				continue
-			}
-
-			giu.InputText(&(*list)[i]).Build()
-		}
-
-		tmp := ""
-		giu.InputText(&tmp).Hint("Add...").OnChange(func() {
-			//*s.toggles.GetByID("push_enabled") = true
-			//*forceEnable = workflow.BoolToFieldSwitch(true)
-			*list = append((*list), tmp)
-			tmp = ""
-		}).Build()
-	})
-}
-
-func (w *Widget) stateCheckbox(label, tag string, sw *workflow.FieldSwitch) giu.Widget {
-	s := w.GetState()
-	return giu.Checkbox(label, s.toggles.GetByID(tag)).OnChange(func() {
-		*sw = workflow.BoolToFieldSwitch(*s.toggles.GetByID(tag))
-	})
-}
-
-func (w *Widget) permissionsTab() giu.Widget {
-	s := w.GetState()
-	permissions := ToStrSlice([]workflow.Permission{workflow.PermNone, workflow.PermRead, workflow.PermWrite})
-	rowsPresets := []struct {
-		superMapID string
-		field      *workflow.Permission
-	}{
-		{"actions", &s.workflow.Permissions.Actions},
-		{"checks", &s.workflow.Permissions.Checks},
-		{"contents", &s.workflow.Permissions.Contents},
-		{"deployments", &s.workflow.Permissions.Deployments},
-		{"idToken", &s.workflow.Permissions.IDToken},
-		{"issues", &s.workflow.Permissions.Issues},
-		{"discussions", &s.workflow.Permissions.Discussions},
-		{"packages", &s.workflow.Permissions.Packages},
-		{"pages", &s.workflow.Permissions.Pages},
-		{"pullRequests", &s.workflow.Permissions.PullRequests},
-		{"repositoryProjects", &s.workflow.Permissions.RepositoryProjects},
-		{"securityEvents", &s.workflow.Permissions.SecurityEvents},
-		{"statuses", &s.workflow.Permissions.Statuses},
-	}
-
-	return giu.Layout{
-		giu.Label("If you specify the access for any of these scopes, all of those that are not specified are set to none."),
-		giu.Table().Rows(func() []*giu.TableRowWidget {
-			result := make([]*giu.TableRowWidget, 0)
-			for _, row := range rowsPresets {
-				row := row
-				yield := giu.TableRow(
-					giu.Label(row.superMapID),
-					giu.Row(
-						giu.Combo(
-							fmt.Sprintf("##%s", row.superMapID),
-							string(*row.field),
-							permissions,
-							s.dropdowns.GetByID(row.superMapID),
-						).OnChange(func() {
-							*row.field = workflow.Permission(permissions[*s.dropdowns.GetByID(row.superMapID)])
-						}),
-						giu.CSSTag("delete-button").To(
-							giu.Button("Reset").OnClick(func() {
-								*row.field = ""
-							}),
-						),
-					),
-				)
-				result = append(result, yield)
-			}
-			return result
-		}()...),
-	}
-}
-
-func (w *Widget) jobsTab() giu.Widget {
-	osList := []string{workflow.OSWindows, workflow.OSUbuntu, workflow.OSMacOS}
-
-	s := w.GetState()
-	tabItems := make([]*giu.TabItemWidget, 0)
-	names := make([]string, 0)
-	for name := range s.workflow.Jobs {
-		names = append(names, name)
-	}
-
-	sort.Strings(names)
-
-	for i, jobName := range names {
-		i := i
-		job := s.workflow.Jobs[jobName]
-		_ = job
-		tabItems = append(tabItems, giu.TabItemf("%s##%d", jobName, i).Layout(
-			giu.Child().Layout(
-				giu.Labelf("Name: %s", jobName),
-				giu.Row(
-					giu.Label("Runs on:"),
-					giu.Combo(
-						fmt.Sprintf("##JobRunsOn%v%d", w.id, i),
-						func() string {
-							if job.RunsOn == "" {
-								return "--"
-							}
-							return osList[*s.dropdowns.GetByID(w.jobRunsOnID(jobName))]
-						}(),
-						osList, s.dropdowns.GetByID(w.jobRunsOnID(jobName)),
-					).OnChange(func() {
-						job.RunsOn = workflow.OS(osList[*s.dropdowns.GetByID(w.jobRunsOnID(jobName))])
-					}),
-				),
-
-				giu.TreeNodef("Needs##%s", jobName).Layout(
-					w.needs(jobName),
-				),
-				// render steps
-				giu.Custom(func() {
-					giu.Separator().Build()
-					for i := 0; i < len(job.Steps); i++ {
-						i := i
-						w.jobStep(i, jobName, job.Steps[i]).Build()
-						giu.Separator().Build()
-					}
-				}),
-				giu.Button("Add step").OnClick(func() {
-					job.Steps = append(job.Steps, &workflow.Step{})
-				}),
-			),
-		),
-		)
-	}
-
-	return giu.Layout{
-		giu.Row(
-			giu.Label("Name: "),
-			giu.InputText(&s.newJobName),
-			giu.Button("Add job").OnClick(func() {
-				s.workflow.Jobs[s.newJobName] = &workflow.Job{}
-			}).Disabled(func() bool {
-				_, ok := s.workflow.Jobs[s.newJobName]
-				return ok || s.newJobName == ""
-			}()),
-		),
-		giu.Dummy(0, 10),
-		giu.TabBar().TabItems(tabItems...),
-	}
-}
-
-func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Widget {
-	s := w.GetState()
-	return giu.Layout{
-		giu.Row(
-			giu.Label("Name:"),
-			giu.InputText(&step.Name).Size(100),
-			giu.Label("ID:"),
-			giu.InputText(&step.Id).Size(100),
-			giu.CSSTag("delete-button").To(
-				giu.Button("Delete").OnClick(func() {
-					s.workflow.Jobs[jobID].Steps = append(s.workflow.Jobs[jobID].Steps[:stepIdx], s.workflow.Jobs[jobID].Steps[stepIdx+1:]...)
-				}),
-			),
-		),
-		giu.Style().SetDisabled(step.Run != "").To(
-			giu.TreeNodef("Uses (External Action)##uses%v%v%v", w.id, jobID, stepIdx).Layout(
-				giu.Row(
-					giu.Label("Uses (Action ID):"),
-					giu.Custom(func() {
-						info := s.actionDetails.GetByID(step.Uses)
-						i := giu.Row(
-							giu.InputText(&step.Uses).Hint("owner/repo@version").OnChange(func() {
-								s.branchesList = nil
-							}),
-							giu.Custom(func() {
-								if s.branchesList != nil && len(s.branchesList) > 0 {
-									giu.Combo(
-										fmt.Sprintf("##branches%s%d", jobID, stepIdx),
-										s.branchesList[s.currentBranch],
-										s.branchesList,
-										&s.currentBranch,
-									).OnChange(func() {
-										step.With = make(map[string]string)
-										w.SearchActionInputs(step.Uses, s)
-										s.APILimits.Dec()
-									}).Build()
-									return
-								}
-
-								giu.Button("Search available branches").OnClick(func() {
-									w.SearchActionBranches(step.Uses, s)
-									s.APILimits.Dec()
-								}).Build()
-
-								giu.Tooltip("This can't be automated because of GitHub API limitations.\nTODO maybe possibility to add token in future").Build()
-							}),
-						)
-
-						if info.Done && info.SearchError != "" {
-							giu.Layout{
-								giu.CSSTag("error-detected").To(
-									i,
-									giu.Tooltip(info.SearchError),
-								),
-							}.Build()
-
-							return
-						}
-
-						i.Build()
-					}),
-				),
-				giu.Labelf("Name: %s", s.actionDetails.GetByID(step.Uses).Name),
-				giu.Labelf("Description: %s", s.actionDetails.GetByID(step.Uses).Description),
-				giu.Custom(func() {
-					// here we print table with inputs
-					info := s.actionDetails.GetByID(step.Uses)
-					if !info.Done {
-						return
-					}
-					rows := make([]*giu.TableRowWidget, len(info.Inputs))
-					keys := make([]string, 0)
-					for key := range info.Inputs {
-						keys = append(keys, key)
-					}
-
-					sort.Strings(keys)
-
-					for i, key := range keys {
-						i := i
-						rows[i] = giu.TableRow(
-							giu.Layout{
-								giu.Label(key),
-								giu.Tooltip(info.Inputs[key].Description),
-							},
-							giu.InputText(s.actionsWith.GetByID(fmt.Sprintf("%s%s%d%s%s", key, step.Uses, stepIdx, jobID, w.id))).OnChange(func() {
-								step.With[key] = *s.actionsWith.GetByID(fmt.Sprintf("%s%s%d%s%s", key, step.Uses, stepIdx, jobID, w.id))
-								if step.With[key] == "" {
-									delete(step.With, key)
-								}
-							}).Hint(info.Inputs[key].Default),
-						)
-					}
-
-					if len(rows) == 0 {
-						return
-					}
-
-					giu.Table().Rows(rows...).Size(-1, 200).Build()
-				}),
-				giu.Style().SetDisabled(step.Uses == "").To(
-					giu.CSSTag("delete-button").To(
-						giu.Button("Clear").Size(-1, 0).OnClick(func() {
-							step.Uses = ""
-							step.With = make(map[string]string)
-						}),
-					),
-				),
-			),
-		),
-		giu.Style().SetDisabled(step.Uses != "").To(
-			giu.TreeNodef("Script##script%v%v%v", w.id, jobID, stepIdx).Layout(
-				giu.InputTextMultiline(&step.Run).Size(-1, 100),
-				giu.Style().SetDisabled(step.Run == "").To(
-					giu.CSSTag("delete-button").To(
-						giu.Button("Clear").Size(-1, 0).OnClick(func() {
-							step.Run = ""
-						}),
-					),
-				),
-			),
-		),
-	}
-}
-
-func (w *Widget) needs(jobName string) giu.Widget {
-	s := w.GetState()
-	jobNames := make([]string, 0)
-	for name := range s.workflow.Jobs {
-		if name != jobName {
-			jobNames = append(jobNames, name)
-		}
-	}
-
-	sort.Strings(jobNames)
-
-	availableJobNames := make([]string, len(jobNames))
-	copy(availableJobNames, jobNames)
-
-	needs := s.workflow.Jobs[jobName].Needs
-	ptrs := make([]*int32, len(needs))
-	for i, need := range needs {
-		ptrs[i] = new(int32)
-		*ptrs[i] = -1
-		for _, name := range jobNames {
-			if name == need {
-				*ptrs[i] = int32(i)
-				availableJobNames[i] = ""
-			}
-		}
-	}
-
-	for i := range availableJobNames {
-		if availableJobNames[i] == "" {
-			availableJobNames = append(availableJobNames[:i], availableJobNames[i+1:]...)
-		}
-	}
-
-	combos := make([]giu.Widget, len(needs))
-	for i := range needs {
-		i := i
-		combos = append(combos, giu.Layout{
-			giu.Combo(fmt.Sprintf("##%s%d", jobName, i),
-				func() string {
-					if *ptrs[i] == -1 {
-						return "--"
-					}
-
-					return jobNames[*ptrs[i]]
-				}(), jobNames, ptrs[i]),
-		})
-
-	}
-
-	return giu.Layout{
-		giu.Layout(combos),
-		giu.Custom(func() {
-			tmp := int32(-1)
-			giu.Combo(fmt.Sprintf("##%sNew", jobName),
-				func() string {
-					if tmp == -1 {
-						return "--"
-					}
-
-					return availableJobNames[tmp]
-				}(), availableJobNames, &tmp).OnChange(func() {
-				if tmp == -1 {
-					return
-				}
-
-				s.workflow.Jobs[jobName].Needs = append(s.workflow.Jobs[jobName].Needs, availableJobNames[tmp])
-			}).Build()
-		}),
 	}
 }

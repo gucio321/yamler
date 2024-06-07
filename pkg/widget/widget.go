@@ -29,7 +29,14 @@ func Workflow(w *workflow.Workflow) *Widget {
 func (w *Widget) Build() {
 	s := w.GetState()
 	giu.Layout{
-		giu.Labelf("API Limits: %d of %d", s.APILimits.Remaining, s.APILimits.Limit),
+		giu.Row(
+			giu.Labelf("API Limits: %d of %d", s.APILimits.Remaining, s.APILimits.Limit),
+			giu.SmallButton("Refresh").OnClick(func() {
+				if err := s.getRequestsLimit(); err != nil {
+					fmt.Println("Error while getting API limits:", err)
+				}
+			}),
+		),
 		giu.Separator(),
 		giu.Row(
 			giu.Label("Name:"),
@@ -303,12 +310,14 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 									).OnChange(func() {
 										step.With = make(map[string]string)
 										SearchActionInputs(step.Uses, s)
+										s.APILimits.Dec()
 									}).Build()
 									return
 								}
 
 								giu.Button("Search available branches").OnClick(func() {
 									SearchActionBranches(step.Uses, s)
+									s.APILimits.Dec()
 								}).Build()
 
 								giu.Tooltip("This can't be automated because of GitHub API limitations.\nTODO maybe possibility to add token in future").Build()
@@ -515,25 +524,20 @@ func SearchActionBranches(name string, s *State) {
 			Name string `json:"name"`
 		}
 
-		type branches struct {
-			Branches []branch
-		}
-
 		// unmarshal output into branches
 		// and put them into s.branchesList
 		// and set s.currentBranch to 0
 		// (if there are any branches)
-		b := &branches{}
+		b := new([]branch)
 		err = json.Unmarshal(output, b)
 		if err != nil {
+			fmt.Printf("Cannot unmarshal: %v\n", err)
 			return
 		}
 
-		for _, branch := range b.Branches {
+		for _, branch := range *b {
 			s.branchesList = append(s.branchesList, branch.Name)
 		}
-
-		fmt.Println(s.branchesList)
 	}()
 }
 

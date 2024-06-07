@@ -43,7 +43,7 @@ func (w *Widget) GetState() *State {
 
 func (w *Widget) newState() *State {
 	s := &State{
-		APILimits:     &APILimits{},
+		APILimits:     NewAPILimits(),
 		apiTimer:      make(chan bool, 1),
 		signature:     true,
 		workflow:      w.w,
@@ -121,6 +121,14 @@ type APILimits struct {
 	Limit     int
 	Remaining int
 	Reset     int
+}
+
+func NewAPILimits() *APILimits {
+	return &APILimits{}
+}
+
+func (a *APILimits) Dec() {
+	a.Remaining--
 }
 
 func (s *State) getRequestsLimit() error {

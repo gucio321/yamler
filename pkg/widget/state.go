@@ -64,7 +64,7 @@ func (w *Widget) newState() *State {
 		}
 		for stepIdx, step := range job.Steps {
 			if step.Uses != "" {
-				SearchActionInputs(step.Uses, s)
+				w.SearchActionInputs(step.Uses, s)
 				// also, fill  with's
 				for key, value := range step.With {
 					jobID := jobID
@@ -75,7 +75,7 @@ func (w *Widget) newState() *State {
 		}
 	}
 
-	if err := s.getRequestsLimit(); err != nil {
+	if err := w.updateRequestsLimitNoStateRace(s); err != nil {
 		fmt.Println("Failed to get requests limit:", err)
 	}
 
@@ -83,7 +83,7 @@ func (w *Widget) newState() *State {
 		for {
 			select {
 			case <-time.NewTimer(1 * time.Minute).C:
-				if err := s.getRequestsLimit(); err != nil {
+				if err := w.updateRequestsLimit(); err != nil {
 					fmt.Println("Failed to get requests limit:", err)
 				}
 			case <-s.apiTimer:
@@ -131,7 +131,12 @@ func (a *APILimits) Dec() {
 	a.Remaining--
 }
 
-func (s *State) getRequestsLimit() error {
+func (w *Widget) updateRequestsLimit() error {
+	s := w.GetState()
+	return w.updateRequestsLimitNoStateRace(s)
+}
+
+func (w *Widget) updateRequestsLimitNoStateRace(s *State) error {
 	// talk to GItHub api and get current requests limit
 	url := "https://api.github.com/rate_limit"
 	type response struct {
@@ -144,7 +149,14 @@ func (s *State) getRequestsLimit() error {
 		} `json:"resources"`
 	}
 
-	resp, err := http.Get(url)
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	w.authorizeRequest(request)
+
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return err
 	}

@@ -15,8 +15,9 @@ import (
 const Signature = `# Generated with yamler: https://github.com/gucio321/yamler by @gucio321`
 
 type Widget struct {
-	id string
-	w  *workflow.Workflow
+	id    string
+	w     *workflow.Workflow
+	token string // GitHub token
 }
 
 func Workflow(w *workflow.Workflow) *Widget {
@@ -26,13 +27,18 @@ func Workflow(w *workflow.Workflow) *Widget {
 	}
 }
 
+func (w *Widget) Token(token string) *Widget {
+	w.token = token
+	return w
+}
+
 func (w *Widget) Build() {
 	s := w.GetState()
 	giu.Layout{
 		giu.Row(
 			giu.Labelf("API Limits: %d of %d", s.APILimits.Remaining, s.APILimits.Limit),
 			giu.SmallButton("Refresh").OnClick(func() {
-				if err := s.getRequestsLimit(); err != nil {
+				if err := w.updateRequestsLimit(); err != nil {
 					fmt.Println("Error while getting API limits:", err)
 				}
 			}),
@@ -309,14 +315,14 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 										&s.currentBranch,
 									).OnChange(func() {
 										step.With = make(map[string]string)
-										SearchActionInputs(step.Uses, s)
+										w.SearchActionInputs(step.Uses, s)
 										s.APILimits.Dec()
 									}).Build()
 									return
 								}
 
 								giu.Button("Search available branches").OnClick(func() {
-									SearchActionBranches(step.Uses, s)
+									w.SearchActionBranches(step.Uses, s)
 									s.APILimits.Dec()
 								}).Build()
 
@@ -402,7 +408,7 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 }
 
 // NOTE: this can't use w.GetState!
-func SearchActionInputs(name string, s *State) {
+func (w *Widget) SearchActionInputs(name string, s *State) {
 	if s.actionDetails.GetByID(name).Capture {
 		return
 	}
@@ -430,6 +436,8 @@ func SearchActionInputs(name string, s *State) {
 			*s.actionDetails.GetByID(name) = *info
 			return
 		}
+
+		w.authorizeRequest(request)
 
 		client := &http.Client{}
 		response, err := client.Do(request)
@@ -486,7 +494,7 @@ func SearchActionInputs(name string, s *State) {
 	}()
 }
 
-func SearchActionBranches(name string, s *State) {
+func (w *Widget) SearchActionBranches(name string, s *State) {
 	go func() {
 		s.branchesList = make([]string, 0)
 		s.currentBranch = 0
@@ -498,6 +506,8 @@ func SearchActionBranches(name string, s *State) {
 			fmt.Println("crash: bad request")
 			return
 		}
+
+		w.authorizeRequest(request)
 
 		response, err := client.Do(request)
 		if err != nil {
@@ -539,6 +549,19 @@ func SearchActionBranches(name string, s *State) {
 			s.branchesList = append(s.branchesList, branch.Name)
 		}
 	}()
+}
+
+func (w *Widget) authorizeRequest(request *http.Request) bool {
+	// now set auth token
+	if w.token == "" {
+		return false
+	}
+
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", w.token))
+	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	return true
+
 }
 
 func (w *Widget) needs(jobName string) giu.Widget {

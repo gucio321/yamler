@@ -24,6 +24,7 @@ type State struct {
 	actionDetails *SuperMap[workflowInfo.Info]
 	actionsWith   *SuperMap[string]
 	newJobName    string
+	InvalidToken  bool
 }
 
 func (s *State) Dispose() {
@@ -154,9 +155,19 @@ func (w *Widget) updateRequestsLimitNoStateRace(s *State) error {
 		return err
 	}
 
-	w.authorizeRequest(request)
+	w.authorizeRequest(request, s)
 
 	resp, err := http.DefaultClient.Do(request)
+	switch resp.StatusCode {
+	case 401: // Invalid credentials
+		s.InvalidToken = true
+		// re-try without token
+		return w.updateRequestsLimitNoStateRace(s)
+	case 200: // OK, do nothing
+	default:
+		return err
+	}
+
 	if err != nil {
 		return err
 	}

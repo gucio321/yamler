@@ -35,13 +35,20 @@ func (w *Widget) Token(token string) *Widget {
 func (w *Widget) Build() {
 	s := w.GetState()
 	giu.Layout{
-		giu.Row(
-			giu.Labelf("API Limits: %d of %d", s.APILimits.Remaining, s.APILimits.Limit),
-			giu.SmallButton("Refresh").OnClick(func() {
-				if err := w.updateRequestsLimit(); err != nil {
-					fmt.Println("Error while getting API limits:", err)
-				}
-			}),
+		giu.CSSTag(func() string {
+			if s.InvalidToken {
+				return "error-detected"
+			}
+			return "main"
+		}()).To(
+			giu.Row(
+				giu.Labelf("API Limits: %d of %d", s.APILimits.Remaining, s.APILimits.Limit),
+				giu.SmallButton("Refresh").OnClick(func() {
+					if err := w.updateRequestsLimit(); err != nil {
+						fmt.Println("Error while getting API limits:", err)
+					}
+				}),
+			),
 		),
 		giu.Separator(),
 		giu.Row(
@@ -437,7 +444,7 @@ func (w *Widget) SearchActionInputs(name string, s *State) {
 			return
 		}
 
-		w.authorizeRequest(request)
+		w.authorizeRequest(request, s) //TODO: this does not cause rash
 
 		client := &http.Client{}
 		response, err := client.Do(request)
@@ -551,9 +558,20 @@ func (w *Widget) SearchActionBranches(name string, s *State) {
 	}()
 }
 
-func (w *Widget) authorizeRequest(request *http.Request) bool {
+func (w *Widget) authorizeRequest(request *http.Request, state ...*State) bool {
+	var s *State
+
+	switch len(state) {
+	case 0:
+		s = w.GetState()
+	case 1:
+		s = state[0]
+	default:
+		panic("what the hell are you doing???")
+	}
+
 	// now set auth token
-	if w.token == "" {
+	if w.token == "" || s.InvalidToken {
 		return false
 	}
 

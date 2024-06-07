@@ -1,6 +1,7 @@
 package widget
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/AllenDang/giu"
 	"github.com/gucio321/yamler/pkg/widget/workflowInfo"
@@ -28,6 +29,8 @@ func Workflow(w *workflow.Workflow) *Widget {
 func (w *Widget) Build() {
 	s := w.GetState()
 	giu.Layout{
+		giu.Labelf("API Limits: %d of %d", s.APILimits.Remaining, s.APILimits.Limit),
+		giu.Separator(),
 		giu.Row(
 			giu.Label("Name:"),
 			giu.InputText(&s.workflow.Name).Size(200),
@@ -286,10 +289,31 @@ func (w *Widget) jobStep(stepIdx int, jobID string, step *workflow.Step) giu.Wid
 					giu.Label("Uses (Action ID):"),
 					giu.Custom(func() {
 						info := s.actionDetails.GetByID(step.Uses)
-						i := giu.InputText(&step.Uses).Hint("owner/repo@version").OnChange(func() {
-							step.With = make(map[string]string)
-							SearchActionInputs(step.Uses, s)
-						})
+						i := giu.Row(
+							giu.InputText(&step.Uses).Hint("owner/repo@version").OnChange(func() {
+								s.branchesList = nil
+							}),
+							giu.Custom(func() {
+								if s.branchesList != nil && len(s.branchesList) > 0 {
+									giu.Combo(
+										fmt.Sprintf("##branches%s%d", jobID, stepIdx),
+										s.branchesList[s.currentBranch],
+										s.branchesList,
+										&s.currentBranch,
+									).OnChange(func() {
+										step.With = make(map[string]string)
+										SearchActionInputs(step.Uses, s)
+									}).Build()
+									return
+								}
+
+								giu.Button("Search available branches").OnClick(func() {
+									SearchActionBranches(step.Uses, s)
+								}).Build()
+
+								giu.Tooltip("This can't be automated because of GitHub API limitations.\nTODO maybe possibility to add token in future").Build()
+							}),
+						)
 
 						if info.Done && info.SearchError != "" {
 							giu.Layout{
@@ -450,6 +474,66 @@ func SearchActionInputs(name string, s *State) {
 		info.Done = true
 		// Reset this because most probably old options does not apply
 		*s.actionDetails.GetByID(name) = *info
+	}()
+}
+
+func SearchActionBranches(name string, s *State) {
+	go func() {
+		s.branchesList = make([]string, 0)
+		s.currentBranch = 0
+		client := &http.Client{}
+		url := fmt.Sprintf("https://api.github.com/repos/%s/branches", name)
+		fmt.Println("URL", url)
+		request, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			fmt.Println("crash: bad request")
+			return
+		}
+
+		response, err := client.Do(request)
+		if err != nil {
+			fmt.Println("crash: can't do request")
+			return
+		}
+
+		if response.StatusCode != 200 {
+			fmt.Println("non-200 status code", response.StatusCode)
+			return
+		}
+
+		output := make([]byte, 0)
+		for {
+			buffer := make([]byte, 1024)
+			n, err := response.Body.Read(buffer)
+			output = append(output, buffer[:n]...)
+			if err != nil {
+				break
+			}
+		}
+
+		type branch struct {
+			Name string `json:"name"`
+		}
+
+		type branches struct {
+			Branches []branch
+		}
+
+		// unmarshal output into branches
+		// and put them into s.branchesList
+		// and set s.currentBranch to 0
+		// (if there are any branches)
+		b := &branches{}
+		err = json.Unmarshal(output, b)
+		if err != nil {
+			return
+		}
+
+		for _, branch := range b.Branches {
+			s.branchesList = append(s.branchesList, branch.Name)
+		}
+
+		fmt.Println(s.branchesList)
 	}()
 }
 

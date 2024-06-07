@@ -1,20 +1,26 @@
 package widget
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/gucio321/yamler/pkg/widget/workflowInfo"
-
 	"github.com/AllenDang/giu"
+	"github.com/gucio321/yamler/pkg/widget/workflowInfo"
 	"github.com/gucio321/yamler/pkg/workflow"
+	"net/http"
+	"time"
 )
 
 type State struct {
+	APILimits     *APILimits
+	apiTimer      chan bool
 	signature     bool
 	workflow      *workflow.Workflow
 	code          string
 	toggles       *SuperMap[bool]
 	permissions   *SuperMap[int32]
 	dropdowns     *SuperMap[int32]
+	currentBranch int32
+	branchesList  []string
 	actionDetails *SuperMap[workflowInfo.Info]
 	actionsWith   *SuperMap[string]
 	newJobName    string
@@ -37,6 +43,8 @@ func (w *Widget) GetState() *State {
 
 func (w *Widget) newState() *State {
 	s := &State{
+		APILimits:     &APILimits{},
+		apiTimer:      make(chan bool, 1),
 		signature:     true,
 		workflow:      w.w,
 		toggles:       NewSuperMap[bool](),
@@ -67,6 +75,23 @@ func (w *Widget) newState() *State {
 		}
 	}
 
+	if err := s.getRequestsLimit(); err != nil {
+		fmt.Println("Failed to get requests limit:", err)
+	}
+
+	go func() {
+		for {
+			select {
+			case <-time.NewTimer(1 * time.Minute).C:
+				if err := s.getRequestsLimit(); err != nil {
+					fmt.Println("Failed to get requests limit:", err)
+				}
+			case <-s.apiTimer:
+				return
+			}
+		}
+	}()
+
 	return s
 }
 
@@ -90,4 +115,42 @@ func (s *SuperMap[T]) GetByID(id string) *T {
 	(*s)[id] = newV
 
 	return newV
+}
+
+type APILimits struct {
+	Limit     int
+	Remaining int
+	Reset     int
+}
+
+func (s *State) getRequestsLimit() error {
+	// talk to GItHub api and get current requests limit
+	url := "https://api.github.com/rate_limit"
+	type response struct {
+		Resources struct {
+			Core struct {
+				Limit     int `json:"limit"`
+				Remaining int `json:"remaining"`
+				Reset     int `json:"reset"`
+			} `json:"core"`
+		} `json:"resources"`
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	var r response
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return err
+	}
+
+	s.APILimits.Limit = r.Resources.Core.Limit
+	s.APILimits.Remaining = r.Resources.Core.Remaining
+	s.APILimits.Reset = r.Resources.Core.Reset
+
+	return nil
 }

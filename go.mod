@@ -17,7 +17,7 @@ require (
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	golang.design/x/hotkey v0.4.1 // indirect
 	golang.design/x/mainthread v0.3.0 // indirect
-	golang.org/x/image v0.16.0 // indirect
+	golang.org/x/image v0.18.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	gopkg.in/eapache/queue.v1 v1.1.0 // indirect
 )
